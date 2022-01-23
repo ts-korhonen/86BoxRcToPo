@@ -132,12 +132,12 @@ namespace _86BoxRcToPo
             {
                 // Replace file dialog filters with qt's format
                 modified = modified.Replace(filter.Value, 
-                    $"({string.Join(" ", filter.Groups[1].Value.Split(';').Select(x => $"{x.ToLower()}"))});;");
+                    $"({string.Join(" ", filter.Groups[1].Value.Split(';').Select(x => $"{x + " " + x.ToLower()}"))});;");
             }
 
-            // Remove trailing ;; if filters was replaced
+            // Remove trailing ;; if filters was replaced and convert "All Files" filters to qt's format.
             if (filters.Any())
-                modified = modified.TrimEnd(';');
+                modified = modified.TrimEnd(';').Replace("(*.* *.*)", "(*)");
 
             // Return replacing some constants and quotes to correct format
             return modified
