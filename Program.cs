@@ -64,6 +64,9 @@ namespace _86BoxRcToPo
 
                 using var output = File.CreateText(path);
 
+                // Use LF line ending 
+                output.NewLine = "\n";
+
                 // Cache to keep track of translated lines to check duplicates
                 Dictionary<string,string> cache = new();
 
@@ -112,40 +115,47 @@ namespace _86BoxRcToPo
                 var ids_line = Regex.Match(line, @"^\s*((IDS_)?\d+).+?""(.+)""");
 
                 if (ids_line.Success)
-                    yield return (ids_line.Groups[1].Value, Convert(ids_line.Groups[3].Value));
+                {
+                    var filedlg = ExtractFileDialogStrings(ids_line.Groups[3].Value);
+
+                    if (filedlg is not null)
+                    {
+                        int id = 1;
+
+                        foreach (string str in filedlg)
+                            yield return ($"{ids_line.Groups[1].Value}_{id}", str);
+                    }
+                    else
+                        yield return (ids_line.Groups[1].Value, Convert(ids_line.Groups[3].Value));
+                }
             }
         }
 
         /// <summary>
-        ///     Converts the string from .rc notation to qt
+        ///     Tries to extract extension descriptions from file dialog filter
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns>descriptions or null if not a filter</returns>
+        static IEnumerable<string> ExtractFileDialogStrings(string str)
+        {
+            string[] test = Regex.Split(str, @"\(.+?\)\\0.+?\\0");
+
+            if (test.Length > 1)
+                return test.Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x));
+            else
+                return null;
+        }
+
+        /// <summary>
+        ///     Converts quotes to qt format, replaces constants
         /// </summary>
         /// <param name="str"></param>
         /// <returns></returns>
-        static string Convert(string str)
-        {
-            string modified = str;
-
-            // Find is line has file dialog filters
-            var filters = Regex.Matches(str, @"\(.+?\)\\0(.+?)\\0");
-
-            foreach (Match filter in filters)
-            {
-                // Replace file dialog filters with qt's format
-                modified = modified.Replace(filter.Value, 
-                    $"({string.Join(" ", filter.Groups[1].Value.Split(';').Select(x => $"{x.ToLower()}"))});;");
-            }
-
-            // Remove trailing ;; if filters was replaced
-            if (filters.Any())
-                modified = modified.TrimEnd(';');
-
-            // Return replacing some constants and quotes to correct format
-            return modified
+        static string Convert(string str) => str
                 .Replace("\" LIB_NAME_PCAP \"", "libpcap")
                 .Replace("\" LIB_NAME_FREETYPE \"", "libfreetype")
                 .Replace("\" LIB_NAME_FLUIDSYNTH \"", "libfluidsynth")
                 .Replace("\" LIB_NAME_GS \"", "libgs")
                 .Replace("\"\"", "\\\"");
-        }
     }
 }
